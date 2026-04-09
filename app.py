@@ -1,20 +1,20 @@
 import streamlit as st
+
+# لازم أول حاجة
+st.set_page_config(page_title="UCAR OCR", layout="wide")
+
 import os
-import io
 import re
-from datetime import datetime
 import cv2
 import numpy as np
 from PIL import Image
 import easyocr
 
-# ============================================
-# تهيئة النظام
-# ============================================
-
-st.set_page_config(page_title="UCAR OCR", layout="wide")
-
 st.title("🔍 UCAR OCR System")
+
+# ============================================
+# تحميل الموديل
+# ============================================
 
 @st.cache_resource
 def load_model():
@@ -77,7 +77,6 @@ class ImagePreprocessor:
 
         return processed, image
 
-
 # ============================================
 # معالجة النص العربي
 # ============================================
@@ -106,7 +105,6 @@ class ArabicTextProcessor:
             return ArabicTextProcessor.fix_common_errors(text)
 
         return text
-
 
 # ============================================
 # OCR Engine
@@ -150,7 +148,6 @@ class OCREngine:
             )
         }
 
-
 # ============================================
 # واجهة المستخدم
 # ============================================
@@ -164,7 +161,7 @@ if uploaded_file is not None:
 
     if st.button("🚀 استخراج النص"):
 
-        with st.spinner("جاري المعالجة..."):
+        with st.spinner("جاري المعالجة... ⏳"):
 
             image_bytes = uploaded_file.read()
 

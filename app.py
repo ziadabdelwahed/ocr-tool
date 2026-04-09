@@ -68,14 +68,16 @@ class ImagePreprocessor:
         return binary
 
     @staticmethod
-    def process(image_bytes):
-        nparr = np.frombuffer(image_bytes, np.uint8)
-        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    def process(image_pil):
+    image = np.array(image_pil)
 
-        image = ImagePreprocessor.deskew(image)
-        processed = ImagePreprocessor.enhance_for_ocr(image)
+    # تحويل من RGB لـ BGR
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
-        return processed, image
+    image = ImagePreprocessor.deskew(image)
+    processed = ImagePreprocessor.enhance_for_ocr(image)
+
+    return processed, image
 
 # ============================================
 # معالجة النص العربي

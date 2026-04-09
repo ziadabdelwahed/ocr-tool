@@ -4,58 +4,61 @@ import numpy as np
 from PIL import Image
 import easyocr
 
-st.set_page_config(page_title="OCR Tool", layout="centered")
-
-st.title("⚡ OCR سريع لاستخراج النص")
+st.title("OCR Tool - Custom")
 
 uploaded_file = st.file_uploader("ارفع صورة", type=["png", "jpg", "jpeg"])
 
-# تحميل الموديل مرة واحدة
 @st.cache_resource
 def load_model():
-    with st.spinner("تحميل موديل OCR لأول مرة... ⏳"):
-        return easyocr.Reader(['ar', 'en'], gpu=False)
+    return easyocr.Reader(['ar', 'en'], gpu=False)
 
 reader = load_model()
 
-# تحسين الصورة + تسريع
-def preprocess(image):
-    img = np.array(image)
+# ✅ preprocess (مظبوط)
+def preprocess_image(image):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    # تصغير الصورة لتسريع المعالجة
-    h, w = img.shape[:2]
-    scale = 800 / max(h, w)
-    img = cv2.resize(img, None, fx=scale, fy=scale)
+    denoised = cv2.fastNlMeansDenoising(gray, h=10)
 
-    # تحويل لرمادي
-    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    coords = np.column_stack(np.where(denoised > 0))
+    angle = cv2.minAreaRect(coords)[-1]
 
-    # blur خفيف
-    gray = cv2.GaussianBlur(gray, (5, 5), 0)
+    if angle < -45:
+        angle = 90 + angle
 
-    return gray
+    (h, w) = denoised.shape[:2]
+    center = (w // 2, h // 2)
+
+    M = cv2.getRotationMatrix2D(center, angle, 1.0)
+    rotated = cv2.warpAffine(denoised, M, (w, h),
+                             borderMode=cv2.BORDER_REPLICATE)
+
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    enhanced = clahe.apply(rotated)
+
+    binary = cv2.adaptiveThreshold(
+        enhanced, 255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY,
+        11, 2
+    )
+
+    return binary
+
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file)
+    cv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
     st.image(image, caption="الصورة", use_column_width=True)
 
     if st.button("🚀 استخراج النص"):
-        with st.spinner("جاري استخراج النص... ⏳"):
-            processed = preprocess(image)
+        with st.spinner("جاري المعالجة..."):
+            processed = preprocess_image(cv_image)
 
-            # قراءة أسرع
             results = reader.readtext(processed, detail=0, paragraph=True)
 
             text = "\n".join(results)
 
         st.success("تم استخراج النص ✅")
-
-        st.text_area("📄 النص المستخرج", text, height=300)
-
-        # زر تحميل
-        st.download_button(
-            "⬇️ تحميل النص",
-            text,
-            file_name="ocr_output.txt"
-            )
+        st.text_area("النص", text, height=300)
